@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Penjualan Counter</title>
+    <style>
+        :root { 
+            --primary: #065f46; 
+            --primary-light: #059669; 
+            --accent: #f59e0b; 
+            --accent-bg: #fef3c7; 
+            --bg: #f0fdf4; 
+            --card-bg: #ffffff;
+            --text: #1e293b;
+        }
+        body { font-family: Arial, sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--text); font-size: 13px; }
+        .card { background: var(--card-bg); border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid var(--primary-light); }
+        
+        /* Card Ringkasan Total Semua Counter */
+        .card-summary { background: linear-gradient(135deg, #065f46, #047857); color: white; border-left: 4px solid var(--accent); }
+        .summary-grid { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+        .summary-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9; }
+        .summary-value { font-size: 16px; font-weight: bold; color: #fde047; }
+
+        h3 { margin: 0 0 10px 0; color: var(--primary); font-size: 15px; }
+        label { font-size: 11px; font-weight: bold; display: block; margin: 6px 0 2px; color: #334155; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; font-size: 13px; }
+        .row { display: flex; gap: 8px; }
+        .row > div { flex: 1; }
+        button { background: var(--primary-light); color: white; border: none; padding: 10px; width: 100%; border-radius: 4px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        button:hover { background: var(--primary); }
+        
+        .btn-danger { background: #dc2626; }
+        .btn-danger:hover { background: #b91c1c; }
+        
+        .table-container { overflow-x: auto; max-height: 500px; }
+        table { border-collapse: collapse; width: 100%; font-size: 11px; white-space: nowrap; }
+        th, td { border: 1px solid #cbd5e1; padding: 5px 7px; text-align: center; }
+        thead th { background: var(--primary); color: white; position: sticky; top: 0; z-index: 2; }
+        .header-counter { background: #047857; color: white; text-transform: uppercase; font-weight: bold; font-size: 13px; }
+        .sunday { color: #dc2626; font-weight: bold; }
+        .holiday-row { background: var(--accent-bg); font-weight: bold; text-align: center; color: #92400e; }
+        .total-row { background: #e6fffa; font-weight: bold; position: sticky; bottom: 0; z-index: 2; color: var(--primary); }
+        .btn-excel { background: #d97706; margin-top: 8px; }
+        .btn-excel:hover { background: #b45309; }
+    </style>
+</head>
+<body>
+
+    <!-- Kotak Ringkasan Total Omzet Semua Counter -->
+    <div class="card card-summary">
+        <div class="summary-title">Akumulasi Total Omzet (Semua Counter Bulan Ini)</div>
+        <div class="summary-value" id="lblTotalSemuaCounter">Rp 0</div>
+    </div>
+
+    <div class="card">
+        <div class="row">
+            <div>
+                <label>Nama Counter</label>
+                <select id="selCounter" onchange="renderTabel()">
+                    <option value="Counter Sport">Counter Sport</option>
+                    <option value="Counter Jeans">Counter Jeans</option>
+                    <option value="Counter Jaket">Counter Jaket</option>
+                    <option value="Counter Butik Pria">Counter Butik Pria</option>
+                    <option value="Counter Busana Muslim">Counter Busana Muslim</option>
+                </select>
+            </div>
+            <div>
+                <label>Tabel Bulan & Tahun</label>
+                <input type="month" id="selBulan" onchange="renderTabel()">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Input / Revisi Nota Harian</h3>
+        <div class="row">
+            <div>
+                <label>Tanggal</label>
+                <input type="date" id="inputTgl" onchange="cekDataTanggal()">
+            </div>
+            <div>
+                <label>Omzet Harian (Rp)</label>
+                <input type="text" id="inputOmzet" placeholder="cth: 6.029.900" onkeyup="formatInputRupiah(this)">
+            </div>
+        </div>
+
+        <div class="row" style="margin-top: 6px;">
+            <div>
+                <label>Departement (Kode)</label>
+                <input type="text" id="inputKode" placeholder="cth: 224">
+            </div>
+            <div>
+                <label>Qty Terjual</label>
+                <input type="number" id="inputQty" placeholder="cth: 32">
+            </div>
+        </div>
+
+        <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+            <input type="checkbox" id="chkLibur" style="width: auto;" onchange="toggleLiburForm()">
+            <label for="chkLibur" style="margin: 0;">Set Hari Libur / Keterangan</label>
+        </div>
+        <input type="text" id="inputKet" placeholder="Nama Libur (cth: IDUL ADHA 1446 H)" style="margin-top: 4px; display: none;">
+
+        <div class="row" style="gap: 6px;">
+            <button style="flex: 2;" onclick="simpanData()">Simpan / Perbarui Data</button>
+            <button style="flex: 1;" class="btn-danger" onclick="hapusDataTanggal()">Hapus Tanggal Ini</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="table-container">
+            <table id="mainTable">
+                <thead>
+                    <tr>
+                        <th id="thCounterHeader" colspan="15" class="header-counter">COUNTER SPORT</th>
+                    </tr>
+                    <tr id="trHeadKode"></tr>
+                </thead>
+                <tbody id="tbBodyData"></tbody>
+                <tfoot>
+                    <tr id="trFootTotal" class="total-row"></tr>
+                </tfoot>
+            </table>
+        </div>
+        <button class="btn-excel" onclick="bukaModalExport()">Generate Format Excel (Siap Tempel)</button>
+    </div>
+
+    <!-- Area Kotak Salin Data Excel -->
+    <div class="card" id="exportCard" style="display:none; background:var(--accent-bg); border: 1px solid var(--accent);">
+        <h3 style="color: #b45309; margin-bottom: 5px;">Salin Data untuk Excel</h3>
+        <p style="font-size: 11px; margin-top: 0; color: #92400e;">Klik tombol salin di bawah, lalu paste langsung di sel A1 aplikasi Spreadsheet/Excel Anda.</p>
+        <textarea id="txtExport" rows="6" readonly style="font-family: monospace; font-size: 11px; background: white;"></textarea>
+        <button style="background: #b45309; margin-top: 6px;" onclick="salinTeksExport()">Salin Teks ke Clipboard</button>
+    </div>
+
+    <script>
+        const dataDepartement = {
+            'Counter Sport': ['221', '222', '223', '224', '241', '242', '243', '271', '273', '275', '263', '251'],
+            'Counter Jeans': ['241', '242', '243', '251', '252'],
+            'Counter Jaket': ['231', '232', '233', '234', '235', '239', '261', '262', '263'],
+            'Counter Butik Pria': ['211', '212', '213', '214', '215', '216', '281', '236', '239'],
+            'Counter Busana Muslim': ['511', '512', '513', '514', '521', '522', '523', '551', '552', '561', '562', '571', '564']
+        };
+        
+        const namaHari = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+
+        const today = new Date();
+        document.getElementById('inputTgl').valueAsDate = today;
+        
+        const currentYear = today.getFullYear();
+        const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
+        document.getElementById('selBulan').value = `${currentYear}-${currentMonth}`;
+
+        function toggleLiburForm() {
+            let isChecked = document.getElementById('chkLibur').checked;
+            document.getElementById('inputKet').style.display = isChecked ? 'block' : 'none';
+        }
+
+        let dbStore = JSON.parse(localStorage.getItem('dbStoreFashion')) || [];
+
+        // Fungsi Format Angka ke Akuntansi / Rupiah (1.500.000)
+        function formatRupiah(angka) {
+            if (!angka && angka !== 0) return '';
+            let number_string = angka.toString().replace(/[^,\d]/g, ''),
+                split = number_string.split(','),
+                sisa = split[0].length % 3,
+                rupiah = split[0].substr(0, sisa),
+                ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
+            if (ribuan) {
+                separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+            return split[1] !== undefined ? rupiah + ',' + split[1] : rupiah;
+        }
+
+        function formatInputRupiah(el) {
+            let originalVal = el.value.replace(/\./g, '');
+            el.value = formatRupiah(originalVal);
+        }
+
+        // Cek data saat tanggal diubah, otomatis memuat data lama jika ada (untuk fitur revisi)
+        function cekDataTanggal() {
+            const counter = document.getElementById('selCounter').value;
+            const tglVal = document.getElementById('inputTgl').value;
+            
+            let record = dbStore.find(x => x.counter === counter && x.tgl === tglVal);
+            if (record) {
+                document.getElementById('inputOmzet').value = record.omzet ? formatRupiah(record.omzet) : '';
+                document.getElementById('chkLibur').checked = record.isLibur || false;
+                document.getElementById('inputKet').value = record.ket || '';
+                toggleLiburForm();
+                // Kosongkan dulu input kode satuan agar bisa diisi jika mau update qty kode tertentu
+                document.getElementById('inputKode').value = '';
+                document.getElementById('inputQty').value = '';
+            } else {
+                document.getElementById('inputOmzet').value = '';
+                document.getElementById('chkLibur').checked = false;
+                document.getElementById('inputKet').value = '';
+                toggleLiburForm();
+                document.getElementById('inputKode').value = '';
+                document.getElementById('inputQty').value = '';
+            }
+        }
+
+        function simpanData() {
+            const counter = document.getElementById('selCounter').value;
+            const tglVal = document.getElementById('inputTgl').value;
+            let rawOmzet = document.getElementById('inputOmzet').value.replace(/\./g, '');
+            const omzet = parseFloat(rawOmzet) || 0;
+            const kode = document.getElementById('inputKode').value.trim();
+            const qty = parseInt(document.getElementById('inputQty').value);
+            const isLibur = document.getElementById('chkLibur').checked;
+            const ket = document.getElementById('inputKet').value;
+
+            if (!tglVal) { alert("Pilih tanggal terlebih dahulu!"); return; }
+
+            let record = dbStore.find(x => x.counter === counter && x.tgl === tglVal);
+            if (!record) {
+                record = { counter, tgl: tglVal, omzet: 0, items: {}, isLibur: false, ket: '' };
+                dbStore.push(record);
+            }
+
+            if (isLibur) {
+                record.isLibur = true;
+                record.ket = ket || 'LIBUR';
+                record.omzet = 0;
+                record.items = {};
+            } else {
+                record.isLibur = false;
+                record.ket = '';
+                if (omzet >= 0) record.omzet = omzet;
+                if (kode && !isNaN(qty)) {
+                    record.items[kode] = qty;
+                }
+            }
+
+            localStorage.setItem('dbStoreFashion', JSON.stringify(dbStore));
+            alert("Data berhasil diperbarui/disimpan!");
+
+            const inputDate = new Date(tglVal);
+            const savedYear = inputDate.getFullYear();
+            const savedMonth = String(inputDate.getMonth() + 1).padStart(2, '0');
+            document.getElementById('selBulan').value = `${savedYear}-${savedMonth}`;
+
+            renderTabel();
+        }
+
+        function hapusDataTanggal() {
+            const counter = document.getElementById('selCounter').value;
+            const tglVal = document.getElementById('inputTgl').value;
+            if (!tglVal) return;
+
+            if (confirm(`Hapus data catatan untuk tanggal ${tglVal} pada ${counter}?`)) {
+                dbStore = dbStore.filter(x => !(x.counter === counter && x.tgl === tglVal));
+                localStorage.setItem('dbStoreFashion', JSON.stringify(dbStore));
+                alert("Data tanggal tersebut berhasil dihapus.");
+                cekDataTanggal();
+                renderTabel();
+            }
+        }
+
+        function renderTabel() {
+            const counterActive = document.getElementById('selCounter').value;
+            const bulanVal = document.getElementById('selBulan').value;
+            document.getElementById('thCounterHeader').innerText = counterActive;
+            
+            const kodesAktif = dataDepartement[counterActive] || [];
+            document.getElementById('thCounterHeader').colSpan = kodesAktif.length + 3;
+
+            const [year, month] = bulanVal.split('-').map(Number);
+            const totalHari = new Date(year, month, 0).getDate();
+
+            let trHead = `<th>HARI</th><th>TANGGAL</th>`;
+            kodesAktif.forEach(k => { trHead += `<th>${k}</th>`; });
+            trHead += `<th>JUMLAH OMZET</th>`;
+            document.getElementById('trHeadKode').innerHTML = trHead;
+
+            let htmlBody = '';
+            let totalQtyPerKode = {};
+            kodesAktif.forEach(k => totalQtyPerKode[k] = 0);
+            let grandTotalOmzet = 0;
+
+            for (let d = 1; d <= totalHari; d++) {
+                let dateObj = new Date(year, month - 1, d);
+                let hariName = namaHari[dateObj.getDay()];
+                let tglStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                let tglDisplay = `${String(d).padStart(2,'0')}-${dateObj.toLocaleString('id-ID',{month:'short'})}-${String(year).slice(-2)}`;
+                
+                let isSunday = dateObj.getDay() === 0;
+                let dayClass = isSunday ? 'class="sunday"' : '';
+
+                let rec = dbStore.find(x => x.counter === counterActive && x.tgl === tglStr);
+
+                if (rec && rec.isLibur) {
+                    htmlBody += `<tr class="holiday-row">
+                        <td ${dayClass}>${hariName}</td>
+                        <td ${dayClass}>${tglDisplay}</td>
+                        <td colspan="${kodesAktif.length + 1}">${rec.ket}</td>
+                    </tr>`;
+                } else {
+                    let rowOmzet = rec ? rec.omzet : 0;
+                    grandTotalOmzet += rowOmzet;
+
+                    htmlBody += `<tr>
+                        <td ${dayClass}>${hariName}</td>
+                        <td ${dayClass}>${tglDisplay}</td>`;
+
+                    kodesAktif.forEach(k => {
+                        let q = (rec && rec.items && rec.items[k] !== undefined) ? rec.items[k] : 0;
+                        totalQtyPerKode[k] += q;
+                        htmlBody += `<td>${q > 0 ? q : ''}</td>`;
+                    });
+
+                    let omzetFormatted = rowOmzet > 0 ? "Rp " + formatRupiah(rowOmzet) : '';
+                    htmlBody += `<td style="text-align:right; font-weight:bold;">${omzetFormatted}</td></tr>`;
+                }
+            }
+            document.getElementById('tbBodyData').innerHTML = htmlBody;
+
+            let trFoot = `<td colspan="2">TOTAL</td>`;
+            kodesAktif.forEach(k => {
+                trFoot += `<td>${totalQtyPerKode[k]}</td>`;
+            });
+            trFoot += `<td style="text-align:right; font-size:12px;">Rp ${formatRupiah(grandTotalOmzet)}</td>`;
+            document.getElementById('trFootTotal').innerHTML = trFoot;
+
+            hitungTotalSemuaCounter(year, month);
+        }
+
+        function hitungTotalSemuaCounter(year, month) {
+            let totalSemua = 0;
+            dbStore.forEach(rec => {
+                if (rec.tgl && !rec.isLibur) {
+                    let [rYear, rMonth] = rec.tgl.split('-').map(Number);
+                    if (rYear === year && rMonth === month) {
+                        totalSemua += (rec.omzet || 0);
+                    }
+                }
+            });
+            document.getElementById('lblTotalSemuaCounter').innerText = "Rp " + formatRupiah(totalSemua);
+        }
+
+        function bukaModalExport() {
+            const counterActive = document.getElementById('selCounter').value;
+            const kodesAktif = dataDepartement[counterActive] || [];
+            
+            let rows = [];
+            rows.push([counterActive]);
+            rows.push(['HARI', 'TANGGAL', ...kodesAktif, 'JUMLAH OMZET']);
+            
+            const bulanVal = document.getElementById('selBulan').value;
+            const [year, month] = bulanVal.split('-').map(Number);
+            const totalHari = new Date(year, month, 0).getDate();
+
+            for (let d = 1; d <= totalHari; d++) {
+                let dateObj = new Date(year, month - 1, d);
+                let hariName = namaHari[dateObj.getDay()];
+                let tglStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                let tglDisplay = `${String(d).padStart(2,'0')}-${dateObj.toLocaleString('id-ID',{month:'short'})}-${String(year).slice(-2)}`;
+                
+                let rec = dbStore.find(x => x.counter === counterActive && x.tgl === tglStr);
+
+                if (rec && rec.isLibur) {
+                    rows.push([hariName, tglDisplay, rec.ket]);
+                } else {
+                    let rowOmzet = rec ? rec.omzet : 0;
+                    let line = [hariName, tglDisplay];
+                    kodesAktif.forEach(k => {
+                        let q = (rec && rec.items && rec.items[k] !== undefined) ? rec.items[k] : 0;
+                        line.push(q);
+                    });
+                    line.push(rowOmzet);
+                    rows.push(line);
+                }
+            }
+
+            let tsvContent = rows.map(e => e.join("\t")).join("\n");
+
+            document.getElementById('exportCard').style.display = 'block';
+            document.getElementById('txtExport').value = tsvContent;
+            document.getElementById('exportCard').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function salinTeksExport() {
+            const txtBox = document.getElementById('txtExport');
+            txtBox.select();
+            txtBox.setSelectionRange(0, 99999);
+            try {
+                navigator.clipboard.writeText(txtBox.value);
+                alert("Berhasil disalin! Silakan tempel (paste) langsung ke baris pertama (A1) di lembar Excel Anda.");
+            } catch (err) {
+                alert("Gagal menyalin otomatis. Silakan blok dan salin manual.");
+            }
+        }
+
+        cekDataTanggal();
+        renderTabel();
+    </script>
+</body>
+</html>
